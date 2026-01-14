@@ -312,11 +312,16 @@ where
 
     fn send_streaming<T>(
         &self,
-        req: Request<T>,
+        mut req: Request<T>,
     ) -> impl Future<Output = http_client::Result<http_client::StreamingResponse>> + WasmCompatSend
     where
         T: Into<Bytes>,
     {
+        req.headers_mut().insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/json"),
+        );
+
         self.http_client.send_streaming(req)
     }
 }
@@ -378,7 +383,13 @@ where
             .ext
             .build_uri(&self.base_url, path.as_ref(), Transport::Http);
 
-        self.ext.with_custom(Request::get(uri))
+        let mut req = Request::get(uri);
+
+        if let Some(hs) = req.headers_mut() {
+            hs.extend(self.headers.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+
+        self.ext.with_custom(req)
     }
 }
 
